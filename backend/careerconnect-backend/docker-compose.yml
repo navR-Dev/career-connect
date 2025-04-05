@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: career_user
+      POSTGRES_PASSWORD: securepassword
+      POSTGRES_DB: career_connect
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/career_connect
+      SPRING_DATASOURCE_USERNAME: career_user
+      SPRING_DATASOURCE_PASSWORD: securepassword
+
+volumes:
+  pgdata:
