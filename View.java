@@ -1,18 +1,26 @@
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 import java.util.List;
+import java.io.*;
 
 public class View extends JFrame implements Observer {
     private JPanel mainPanel;
     private CardLayout cardLayout;
     private JTextArea jobListArea, userListArea;
-    private JTextField usernameField, passwordField, jobTitleField;
+    private JTextField usernameField, passwordField, jobTitleField, regUsernameField, regPasswordField;
     private JTextArea jobDescArea;
     private JButton loginBtn, registerBtn, applyBtn, addJobBtn, logoutBtn;
     private JButton jobSeekerRegBtn, companyRegBtn, deleteUserBtn, deleteJobBtn;
     private JComboBox<String> jobSelection, userSelection, jobSelectionAdmin;
+    private JComboBox<String> applicationSelection;
+    private JButton selectBtn, rejectBtn, viewResumeBtn;
+    private JTextArea applicationsArea;
     private Model model;
+    private File selectedResume;
+    private JComboBox<String> companyJobSelection;
+    private JButton closeJobBtn;
 
     public View() {
         setTitle("Job Portal");
@@ -22,31 +30,45 @@ public class View extends JFrame implements Observer {
         mainPanel = new JPanel(cardLayout);
 
         // Login Panel
-        JPanel loginPanel = new JPanel(new GridLayout(3, 2));
+        JPanel loginPanel = new JPanel(new BorderLayout());
+        JLabel loginTitle = new JLabel("Login", SwingConstants.CENTER);
+        loginTitle.setFont(new Font("Arial", Font.BOLD, 16));
+        loginPanel.add(loginTitle, BorderLayout.NORTH);
+        JPanel loginFields = new JPanel(new GridLayout(3, 2, 10, 10));
+        loginFields.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         usernameField = new JTextField(15);
         passwordField = new JPasswordField(15);
         loginBtn = new JButton("Login");
-        registerBtn = new JButton("Register");
-        loginPanel.add(new JLabel("Username:"));
-        loginPanel.add(usernameField);
-        loginPanel.add(new JLabel("Password:"));
-        loginPanel.add(passwordField);
-        loginPanel.add(loginBtn);
-        loginPanel.add(registerBtn);
+        registerBtn = new JButton("Go to Register");
+        loginFields.add(new JLabel("Username:"));
+        loginFields.add(usernameField);
+        loginFields.add(new JLabel("Password:"));
+        loginFields.add(passwordField);
+        loginFields.add(loginBtn);
+        loginFields.add(registerBtn);
+        loginPanel.add(loginFields, BorderLayout.CENTER);
 
         // Register Panel
-        JPanel registerPanel = new JPanel(new GridLayout(4, 2));
+        JPanel registerPanel = new JPanel(new BorderLayout());
+        JLabel registerTitle = new JLabel("Register", SwingConstants.CENTER);
+        registerTitle.setFont(new Font("Arial", Font.BOLD, 16));
+        registerPanel.add(registerTitle, BorderLayout.NORTH);
+        JPanel registerFields = new JPanel(new GridLayout(4, 2, 10, 10));
+        registerFields.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        regUsernameField = new JTextField(15);
+        regPasswordField = new JPasswordField(15);
         jobSeekerRegBtn = new JButton("Register as Job Seeker");
         companyRegBtn = new JButton("Register as Company");
-        registerPanel.add(new JLabel("Username:"));
-        registerPanel.add(usernameField); // Reusing usernameField
-        registerPanel.add(new JLabel("Password:"));
-        registerPanel.add(passwordField); // Reusing passwordField
-        registerPanel.add(jobSeekerRegBtn);
-        registerPanel.add(companyRegBtn);
-        JButton backBtn = new JButton("Back");
+        registerFields.add(new JLabel("New Username:"));
+        registerFields.add(regUsernameField);
+        registerFields.add(new JLabel("New Password:"));
+        registerFields.add(regPasswordField);
+        registerFields.add(jobSeekerRegBtn);
+        registerFields.add(companyRegBtn);
+        JButton backBtn = new JButton("Back to Login");
         backBtn.addActionListener(e -> cardLayout.show(mainPanel, "login"));
-        registerPanel.add(backBtn);
+        registerFields.add(backBtn);
+        registerPanel.add(registerFields, BorderLayout.CENTER);
 
         // Job Seeker Panel
         JPanel jobSeekerPanel = new JPanel(new BorderLayout());
@@ -55,12 +77,15 @@ public class View extends JFrame implements Observer {
         jobSelection = new JComboBox<>();
         applyBtn = new JButton("Apply for Selected Job");
         logoutBtn = new JButton("Logout");
+        applicationsArea = new JTextArea(5, 40);
+        applicationsArea.setEditable(false);
         jobSeekerPanel.add(new JScrollPane(jobListArea), BorderLayout.CENTER);
         JPanel jobSeekerButtons = new JPanel();
         jobSeekerButtons.add(jobSelection);
         jobSeekerButtons.add(applyBtn);
         jobSeekerButtons.add(logoutBtn);
         jobSeekerPanel.add(jobSeekerButtons, BorderLayout.SOUTH);
+        jobSeekerPanel.add(new JScrollPane(applicationsArea), BorderLayout.NORTH);
 
         // Company Panel
         JPanel companyPanel = new JPanel(new BorderLayout());
@@ -69,12 +94,26 @@ public class View extends JFrame implements Observer {
         jobTitleField = new JTextField(20);
         jobDescArea = new JTextArea(5, 20);
         addJobBtn = new JButton("Add Job");
-        JPanel companyInput = new JPanel(new GridLayout(3, 2));
+        applicationSelection = new JComboBox<>();
+        selectBtn = new JButton("Select for Interview");
+        rejectBtn = new JButton("Reject Application");
+        viewResumeBtn = new JButton("View Resume");
+        companyJobSelection = new JComboBox<>();
+        closeJobBtn = new JButton("Close Job");
+        JPanel companyInput = new JPanel(new GridLayout(6, 2));
         companyInput.add(new JLabel("Job Title:"));
         companyInput.add(jobTitleField);
         companyInput.add(new JLabel("Description:"));
         companyInput.add(new JScrollPane(jobDescArea));
         companyInput.add(addJobBtn);
+        companyInput.add(new JLabel("Applications:"));
+        companyInput.add(applicationSelection);
+        companyInput.add(selectBtn);
+        companyInput.add(rejectBtn);
+        companyInput.add(viewResumeBtn);
+        companyInput.add(new JLabel("Select Job to Close:"));
+        companyInput.add(companyJobSelection);
+        companyInput.add(closeJobBtn);
         JButton companyLogoutBtn = new JButton("Logout");
         companyLogoutBtn.addActionListener(e -> cardLayout.show(mainPanel, "login"));
         companyInput.add(companyLogoutBtn);
@@ -114,7 +153,6 @@ public class View extends JFrame implements Observer {
         cardLayout.show(mainPanel, "login");
     }
 
-    // Observer Pattern: Update job list
     @Override
     public void update() {
         List<Model.Job> jobs = model.getJobs();
@@ -126,12 +164,10 @@ public class View extends JFrame implements Observer {
         }
     }
 
-    // Setters for model
     public void setModel(Model model) {
         this.model = model;
     }
 
-    // Getters for buttons
     public JButton getJobSeekerRegBtn() {
         return jobSeekerRegBtn;
     }
@@ -140,19 +176,32 @@ public class View extends JFrame implements Observer {
         return companyRegBtn;
     }
 
-    // Methods to bind controller actions
     public void setLoginListener(ActionListener listener) {
         loginBtn.addActionListener(listener);
     }
 
     public void setRegisterListener(ActionListener listener) {
-        registerBtn.addActionListener(e -> cardLayout.show(mainPanel, "register"));
+        registerBtn.addActionListener(e -> {
+            regUsernameField.setText("");
+            regPasswordField.setText("");
+            cardLayout.show(mainPanel, "register");
+        });
         jobSeekerRegBtn.addActionListener(listener);
         companyRegBtn.addActionListener(listener);
     }
 
     public void setApplyListener(ActionListener listener) {
-        applyBtn.addActionListener(listener);
+        applyBtn.addActionListener(e -> {
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("PDF Files", "pdf"));
+            int result = fileChooser.showOpenDialog(this);
+            if (result == JFileChooser.APPROVE_OPTION) {
+                selectedResume = fileChooser.getSelectedFile();
+                listener.actionPerformed(new ActionEvent(applyBtn, ActionEvent.ACTION_PERFORMED, null));
+            } else {
+                showMessage("Resume upload cancelled");
+            }
+        });
     }
 
     public void setAddJobListener(ActionListener listener) {
@@ -171,13 +220,36 @@ public class View extends JFrame implements Observer {
         deleteJobBtn.addActionListener(listener);
     }
 
-    // Getters for input fields
+    public void setSelectListener(ActionListener listener) {
+        selectBtn.addActionListener(listener);
+    }
+
+    public void setRejectListener(ActionListener listener) {
+        rejectBtn.addActionListener(listener);
+    }
+
+    public void setViewResumeListener(ActionListener listener) {
+        viewResumeBtn.addActionListener(listener);
+    }
+
+    public void setCloseJobListener(ActionListener listener) {
+        closeJobBtn.addActionListener(listener);
+    }
+
     public String getUsername() {
         return usernameField.getText();
     }
 
     public String getPassword() {
         return passwordField.getText();
+    }
+
+    public String getRegUsername() {
+        return regUsernameField.getText();
+    }
+
+    public String getRegPassword() {
+        return regPasswordField.getText();
     }
 
     public String getJobTitle() {
@@ -193,6 +265,20 @@ public class View extends JFrame implements Observer {
         return selected != null ? Integer.parseInt(selected.split(":")[0]) : -1;
     }
 
+    public int getSelectedApplicationId() {
+        String selected = (String) applicationSelection.getSelectedItem();
+        return selected != null ? Integer.parseInt(selected.split(":")[0]) : -1;
+    }
+
+    public File getSelectedResume() {
+        return selectedResume;
+    }
+
+    public int getSelectedCompanyJobId() {
+        String selected = (String) companyJobSelection.getSelectedItem();
+        return selected != null ? Integer.parseInt(selected.split(":")[0]) : -1;
+    }
+
     public void showMessage(String message) {
         JOptionPane.showMessageDialog(this, message);
     }
@@ -205,8 +291,25 @@ public class View extends JFrame implements Observer {
         JTextArea companyJobList = (JTextArea) ((JScrollPane) ((JPanel) mainPanel.getComponent(3)).getComponent(0))
                 .getViewport().getView();
         companyJobList.setText("");
+        companyJobSelection.removeAllItems();
         for (Model.Job job : jobs) {
             companyJobList.append(job.title + " - " + job.status + "\n" + job.description + "\n\n");
+            companyJobSelection.addItem(job.id + ": " + job.title);
+        }
+    }
+
+    public void updateCompanyApplications(List<Model.Application> applications) {
+        applicationSelection.removeAllItems();
+        for (Model.Application app : applications) {
+            applicationSelection.addItem(app.id + ": " + app.jobseekerUsername + " (" + app.status + ")");
+        }
+    }
+
+    public void updateJobSeekerApplications(List<Model.Application> applications) {
+        applicationsArea.setText("");
+        for (Model.Application app : applications) {
+            applicationsArea
+                    .append("Job: " + app.jobTitle + " - Company: " + app.company + " - Status: " + app.status + "\n");
         }
     }
 
